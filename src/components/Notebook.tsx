@@ -4,8 +4,9 @@ import { v4 as uuidv4 } from "uuid";
 import { CellType, CellData } from "@/types";
 import Cell from "./Cell";
 import { Button } from "./ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Undo, Redo } from "lucide-react";
 import { useToast } from "./ui/use-toast";
+import useUndoRedo from "@/hooks/useUndoRedo";
 
 // Extend Window interface to include our custom properties
 declare global {
@@ -17,6 +18,7 @@ declare global {
 
 interface NotebookProps {
   initialCells?: CellData[];
+  onCellsChange?: (cells: CellData[]) => void;
 }
 
 const defaultCells: CellData[] = [
@@ -66,9 +68,17 @@ const defaultChartTemplate = JSON.stringify({
   }
 }, null, 2);
 
-const Notebook = ({ initialCells = defaultCells }: NotebookProps) => {
-  const [cells, setCells] = useState<CellData[]>(initialCells);
+const Notebook = ({ initialCells = defaultCells, onCellsChange }: NotebookProps) => {
+  // Setup undo/redo system using the custom hook
+  const { state: cells, updateState: setCells, undo, redo, canUndo, canRedo } = useUndoRedo(initialCells);
   const { toast } = useToast();
+
+  // Notify parent component when cells change
+  useEffect(() => {
+    if (onCellsChange) {
+      onCellsChange(cells);
+    }
+  }, [cells, onCellsChange]);
 
   const handleContentChange = (id: string, content: string) => {
     setCells(cells.map(cell => 
@@ -198,6 +208,27 @@ const Notebook = ({ initialCells = defaultCells }: NotebookProps) => {
 
   return (
     <div className="min-h-full bg-white rounded-md shadow">
+      <div className="p-2 border-b flex justify-end space-x-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={undo}
+          disabled={!canUndo}
+          className="flex items-center gap-1"
+        >
+          <Undo className="h-4 w-4" /> Undo
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={redo}
+          disabled={!canRedo}
+          className="flex items-center gap-1"
+        >
+          <Redo className="h-4 w-4" /> Redo
+        </Button>
+      </div>
+      
       <div className="divide-y">
         {cells.map((cell, index) => (
           <Cell

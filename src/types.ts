@@ -8,3 +8,14 @@ export interface CellData {
   output: string;
   error: string | null;
 }
+
+export interface NotebookData {
+  title: string;
+  cells: CellData[];
+}
+
+export interface UndoRedoState {
+  past: NotebookData[];
+  present: NotebookData;
+  future: NotebookData[];
+}
