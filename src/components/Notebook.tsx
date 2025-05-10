@@ -7,6 +7,14 @@ import { Button } from "./ui/button";
 import { Plus } from "lucide-react";
 import { useToast } from "./ui/use-toast";
 
+// Extend Window interface to include our custom properties
+declare global {
+  interface Window {
+    __notebookConsoleLog__?: (...args: any[]) => void;
+    __notebookConsoleError__?: (...args: any[]) => void;
+  }
+}
+
 interface NotebookProps {
   initialCells?: CellData[];
 }
