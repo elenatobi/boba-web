@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { CellType, CellData } from "@/types";
+import { CellType, CellData, NotebookData } from "@/types";
 import Cell from "./Cell";
 import { Button } from "./ui/button";
 import { Plus, Undo, Redo } from "lucide-react";
@@ -69,21 +69,28 @@ const defaultChartTemplate = JSON.stringify({
 }, null, 2);
 
 const Notebook = ({ initialCells = defaultCells, onCellsChange }: NotebookProps) => {
-  // Setup undo/redo system using the custom hook
-  const { state: cells, updateState: setCells, undo, redo, canUndo, canRedo } = useUndoRedo(initialCells);
+  // Setup undo/redo system using the custom hook with a proper NotebookData structure
+  const { state: notebook, updateState: setNotebook, undo, redo, canUndo, canRedo } = useUndoRedo({
+    title: "Untitled Notebook",
+    cells: initialCells
+  });
+  
   const { toast } = useToast();
 
   // Notify parent component when cells change
   useEffect(() => {
     if (onCellsChange) {
-      onCellsChange(cells);
+      onCellsChange(notebook.cells);
     }
-  }, [cells, onCellsChange]);
+  }, [notebook.cells, onCellsChange]);
 
   const handleContentChange = (id: string, content: string) => {
-    setCells(cells.map(cell => 
-      cell.id === id ? { ...cell, content } : cell
-    ));
+    setNotebook({
+      ...notebook,
+      cells: notebook.cells.map(cell => 
+        cell.id === id ? { ...cell, content } : cell
+      )
+    });
   };
 
   const handleAddCell = (type: CellType, atIndex: number) => {
@@ -95,28 +102,40 @@ const Notebook = ({ initialCells = defaultCells, onCellsChange }: NotebookProps)
       error: null
     };
     
-    const newCells = [...cells];
+    const newCells = [...notebook.cells];
     newCells.splice(atIndex, 0, newCell);
-    setCells(newCells);
+    
+    setNotebook({
+      ...notebook,
+      cells: newCells
+    });
   };
 
   const handleMoveCell = (id: string, direction: "up" | "down") => {
-    const index = cells.findIndex(cell => cell.id === id);
+    const index = notebook.cells.findIndex(cell => cell.id === id);
     if (index === -1) return;
     
     if (direction === "up" && index > 0) {
-      const newCells = [...cells];
+      const newCells = [...notebook.cells];
       [newCells[index], newCells[index - 1]] = [newCells[index - 1], newCells[index]];
-      setCells(newCells);
-    } else if (direction === "down" && index < cells.length - 1) {
-      const newCells = [...cells];
+      
+      setNotebook({
+        ...notebook,
+        cells: newCells
+      });
+    } else if (direction === "down" && index < notebook.cells.length - 1) {
+      const newCells = [...notebook.cells];
       [newCells[index], newCells[index + 1]] = [newCells[index + 1], newCells[index]];
-      setCells(newCells);
+      
+      setNotebook({
+        ...notebook,
+        cells: newCells
+      });
     }
   };
 
   const handleDeleteCell = (id: string) => {
-    if (cells.length <= 1) {
+    if (notebook.cells.length <= 1) {
       toast({
         title: "Cannot delete cell",
         description: "Notebook must have at least one cell",
@@ -124,11 +143,15 @@ const Notebook = ({ initialCells = defaultCells, onCellsChange }: NotebookProps)
       });
       return;
     }
-    setCells(cells.filter(cell => cell.id !== id));
+    
+    setNotebook({
+      ...notebook,
+      cells: notebook.cells.filter(cell => cell.id !== id)
+    });
   };
 
   const executeCell = (id: string) => {
-    const cell = cells.find(c => c.id === id);
+    const cell = notebook.cells.find(c => c.id === id);
     if (!cell) return;
 
     if (cell.type === "code") {
@@ -183,25 +206,37 @@ const Notebook = ({ initialCells = defaultCells, onCellsChange }: NotebookProps)
         delete window.__notebookConsoleLog__;
         delete window.__notebookConsoleError__;
 
-        setCells(cells.map(c => 
-          c.id === id ? { ...c, output, error: null } : c
-        ));
+        setNotebook({
+          ...notebook,
+          cells: notebook.cells.map(c => 
+            c.id === id ? { ...c, output, error: null } : c
+          )
+        });
       } catch (err) {
-        setCells(cells.map(c => 
-          c.id === id ? { ...c, error: err instanceof Error ? err.message : String(err) } : c
-        ));
+        setNotebook({
+          ...notebook,
+          cells: notebook.cells.map(c => 
+            c.id === id ? { ...c, error: err instanceof Error ? err.message : String(err) } : c
+          )
+        });
       }
     } else if (cell.type === "chart") {
       try {
         // Validate JSON
         JSON.parse(cell.content);
-        setCells(cells.map(c => 
-          c.id === id ? { ...c, error: null } : c
-        ));
+        setNotebook({
+          ...notebook,
+          cells: notebook.cells.map(c => 
+            c.id === id ? { ...c, error: null } : c
+          )
+        });
       } catch (err) {
-        setCells(cells.map(c => 
-          c.id === id ? { ...c, error: "Invalid JSON: " + (err instanceof Error ? err.message : String(err)) } : c
-        ));
+        setNotebook({
+          ...notebook,
+          cells: notebook.cells.map(c => 
+            c.id === id ? { ...c, error: "Invalid JSON: " + (err instanceof Error ? err.message : String(err)) } : c
+          )
+        });
       }
     }
   };
@@ -230,14 +265,14 @@ const Notebook = ({ initialCells = defaultCells, onCellsChange }: NotebookProps)
       </div>
       
       <div className="divide-y">
-        {cells.map((cell, index) => (
+        {notebook.cells.map((cell, index) => (
           <Cell
             key={cell.id}
             id={cell.id}
             type={cell.type}
             content={cell.content}
             index={index}
-            totalCells={cells.length}
+            totalCells={notebook.cells.length}
             onContentChange={handleContentChange}
             onAddCell={handleAddCell}
             onMoveCell={handleMoveCell}
@@ -254,7 +289,7 @@ const Notebook = ({ initialCells = defaultCells, onCellsChange }: NotebookProps)
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleAddCell("text", cells.length)}
+            onClick={() => handleAddCell("text", notebook.cells.length)}
             className="flex items-center gap-1"
           >
             <Plus className="h-4 w-4" /> Text
@@ -262,7 +297,7 @@ const Notebook = ({ initialCells = defaultCells, onCellsChange }: NotebookProps)
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleAddCell("code", cells.length)}
+            onClick={() => handleAddCell("code", notebook.cells.length)}
             className="flex items-center gap-1"
           >
             <Plus className="h-4 w-4" /> Code
@@ -270,7 +305,7 @@ const Notebook = ({ initialCells = defaultCells, onCellsChange }: NotebookProps)
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleAddCell("chart", cells.length)}
+            onClick={() => handleAddCell("chart", notebook.cells.length)}
             className="flex items-center gap-1"
           >
             <Plus className="h-4 w-4" /> Chart
