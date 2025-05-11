@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { CellType, CellData, NotebookData } from "@/types";
 import Cell from "./Cell";
@@ -77,7 +77,7 @@ const Notebook = ({ initialCells = defaultCells, onCellsChange }: NotebookProps)
   
   const { toast } = useToast();
 
-  // Notify parent component when cells change
+  // Notify parent component when cells change, but only when notebook.cells actually changes
   useEffect(() => {
     if (onCellsChange) {
       onCellsChange(notebook.cells);

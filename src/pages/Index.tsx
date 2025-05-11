@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import Notebook from "@/components/Notebook";
 import { useToast } from "@/components/ui/use-toast";
 import { saveNotebook, loadNotebook } from "@/utils/fileOperations";
-import { NotebookData } from "@/types";
+import { NotebookData, CellData } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
 const defaultNotebook: NotebookData = {
@@ -66,20 +66,18 @@ const Index = () => {
         title: "Notebook loaded",
         description: `${loadedNotebook.title} has been loaded successfully.`,
       });
-    } else {
-      toast({
-        title: "Load failed",
-        description: "There was an error loading the notebook.",
-        variant: "destructive",
-      });
     }
   };
 
-  const handleCellsChange = (cells: NotebookData["cells"]) => {
-    setNotebook(prev => ({
-      ...prev,
-      cells
-    }));
+  const handleCellsChange = (cells: CellData[]) => {
+    // This is to prevent excessive re-renders and infinite loops
+    // Only update if cells actually changed
+    if (JSON.stringify(cells) !== JSON.stringify(notebook.cells)) {
+      setNotebook(prev => ({
+        ...prev,
+        cells
+      }));
+    }
   };
 
   return (
